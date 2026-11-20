@@ -292,17 +292,20 @@ class AutoProducer:
             music_track = get_music_track(story_type, bpm_hint=bpm)
             if music_track:
                 if is_placeholder(music_track):
-                    logger.warning(
-                        "music_placeholder_in_use",
+                    # Placeholder synthetic beats must not reach published videos.
+                    # Skip silently — video keeps its authentic crowd/ambient audio.
+                    logger.info(
+                        "music_placeholder_skipped",
                         filename=music_track.filename,
-                        note="Replace with real CC0/licensed track before public launch",
+                        note="Place real CC0 tracks in assets/music/ to enable music embedding",
                     )
-                music_out = vid_work.with_suffix(".music.mp4")
-                ok = embed_cc0_music(vid_work, music_track, music_out)  # type: ignore[arg-type]
-                if ok:
-                    vid_work.unlink()
-                    music_out.rename(vid_work)
-                    result.stages_completed.append("music_embedded")
+                else:
+                    music_out = vid_work.with_suffix(".music.mp4")
+                    ok = embed_cc0_music(vid_work, music_track, music_out)  # type: ignore[arg-type]
+                    if ok:
+                        vid_work.unlink()
+                        music_out.rename(vid_work)
+                        result.stages_completed.append("music_embedded")
 
             # Move to final destination
             shutil.move(str(vid_work), str(final_path))
@@ -355,6 +358,20 @@ class AutoProducer:
             result.stages_completed.append("db_recorded")
 
             # ── 10. Upload ────────────────────────────────────────────────
+            # Hard gate: mock-generated scripts are not production content.
+            # Render is kept for local preview; upload is blocked until a real
+            # script writer (Claude) is wired in via ANTHROPIC_API_KEY.
+            if (storyboard.generated_by or "").startswith("mock"):
+                logger.warning(
+                    "upload_blocked_mock_content",
+                    title=storyboard.title[:60],
+                    note="Set ANTHROPIC_API_KEY in .env to enable real script writing",
+                )
+                result.stages_completed.append("upload_skipped_mock_content")
+                result.success = True
+                _prune_old_renders()
+                return result
+
             try:
                 metadata = _build_metadata(storyboard, publish_at=self._publish_at)
                 uploader = YouTubeUploader()
@@ -370,9 +387,15 @@ class AutoProducer:
                         title=storyboard.title[:60],
                     )
 
-                    if self._auto_publish:
+                    if self._auto_publish and not self._publish_at:
+                        # Immediate public release (no schedule set).
+                        # When publish_at is set, YouTube's publishAt field handles
+                        # the scheduled release automatically — calling _publish_public
+                        # here would override the schedule and release immediately.
                         _publish_public(upload_result.youtube_id)
                         result.stages_completed.append("published_public")
+                    elif self._publish_at:
+                        result.stages_completed.append("scheduled_public")
 
                 elif upload_result.is_duplicate:
                     result.youtube_id = upload_result.youtube_id
