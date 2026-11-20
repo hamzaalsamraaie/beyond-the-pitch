@@ -448,6 +448,18 @@ def _write_metadata_file(
     video_path: Path,
 ) -> None:
     """Write a human-readable metadata.txt alongside the video for manual upload."""
+    # Build a richer description from verified research facts
+    facts = " ".join(item.fact for item in storyboard.research_items[:4])
+    hook_line = storyboard.hook or ""
+    hashtags_str = " ".join(storyboard.hashtags)
+    description = (
+        f"{hook_line}\n\n"
+        f"{facts}\n\n"
+        f"{hashtags_str}\n\n"
+        "🏟️ Beyond The Pitch — Football stories you've forgotten.\n"
+        "Subscribe for more forgotten football stories every week."
+    )
+
     tags_str = ", ".join(meta.tags[:30]) if meta.tags else ""
     lines = [
         "=" * 60,
@@ -460,9 +472,16 @@ def _write_metadata_file(
         "",
         "── YOUTUBE UPLOAD DETAILS ──────────────────────────────────",
         "",
-        f"TITLE:\n{meta.title}",
+        "TITLE (pick one):",
+    ]
+    for i, t in enumerate(storyboard.proposed_titles or [meta.title], 1):
+        lines.append(f"  {i}. {t}")
+    lines += [
         "",
-        f"DESCRIPTION:\n{meta.description}",
+        "DESCRIPTION (copy everything below the dashes):",
+        "---",
+        description,
+        "---",
         "",
         f"TAGS:\n{tags_str}",
         "",
@@ -472,7 +491,7 @@ def _write_metadata_file(
         "2. Set category: Sports (17)",
         "3. Add thumbnail: same filename with .jpg extension",
         "4. Add music via YouTube Shorts audio picker after upload",
-        "   (Trending audio adds reach in the Shorts feed)",
+        "   (Trending audio boosts reach in the Shorts shelf)",
         "",
         "=" * 60,
     ]
