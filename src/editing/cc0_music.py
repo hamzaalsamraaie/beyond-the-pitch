@@ -124,17 +124,41 @@ def embed_cc0_music(
     except ValueError:
         duration = 60.0
 
-    cmd = [
-        ff, "-y",
-        "-i", str(video_path),
-        "-i", str(music_path),
-        "-filter_complex",
-        (
+    # Probe whether the video has an audio stream
+    has_video_audio = False
+    try:
+        probe = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json",
+             "-show_streams", str(video_path)],
+            capture_output=True, text=True,
+        )
+        import json as _json
+        streams = _json.loads(probe.stdout).get("streams", [])
+        has_video_audio = any(s.get("codec_type") == "audio" for s in streams)
+    except Exception:
+        pass
+
+    if has_video_audio:
+        # Mix music under existing audio
+        audio_filter = (
             f"[1:a]volume={music_volume_db}dB,"
             f"atrim=0:{duration:.2f},asetpts=PTS-STARTPTS,"
             f"aresample=48000[music];"
             "[0:a][music]amix=inputs=2:duration=first:dropout_transition=2[aout]"
-        ),
+        )
+    else:
+        # No video audio — music becomes the sole audio track (slight boost)
+        audio_filter = (
+            f"[1:a]volume={music_volume_db + 6:.1f}dB,"
+            f"atrim=0:{duration:.2f},asetpts=PTS-STARTPTS,"
+            f"aresample=48000[aout]"
+        )
+
+    cmd = [
+        ff, "-y",
+        "-i", str(video_path),
+        "-i", str(music_path),
+        "-filter_complex", audio_filter,
         "-map", "0:v",
         "-map", "[aout]",
         "-c:v", "copy",

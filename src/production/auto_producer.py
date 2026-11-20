@@ -27,6 +27,7 @@ HARD LIMITS:
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -102,13 +103,32 @@ def _storyboard_to_story_beats(storyboard: Storyboard) -> list[tuple[float, floa
 def _normalise_in_place(path: Path) -> None:
     tmp = path.with_suffix(".norm_tmp.mp4")
     ff = shutil.which("ffmpeg")
-    result = subprocess.run(
-        [ff, "-y", "-i", str(path),
-         "-af", "loudnorm=I=-16:TP=-1.5:LRA=11:linear=true",
-         "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
-         str(tmp)],
-        capture_output=True, text=True,
-    )
+    ffprobe = shutil.which("ffprobe")
+
+    # Only apply loudnorm when the file actually has an audio stream
+    has_audio = False
+    if ffprobe:
+        try:
+            probe = subprocess.run(
+                [ffprobe, "-v", "quiet", "-print_format", "json",
+                 "-show_streams", str(path)],
+                capture_output=True, text=True,
+            )
+            streams = json.loads(probe.stdout).get("streams", [])
+            has_audio = any(s.get("codec_type") == "audio" for s in streams)
+        except Exception:
+            pass
+
+    if has_audio:
+        cmd = [ff, "-y", "-i", str(path),
+               "-af", "loudnorm=I=-16:TP=-1.5:LRA=11:linear=true",
+               "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
+               str(tmp)]
+    else:
+        # No audio — copy video only; music embed will add audio later
+        cmd = [ff, "-y", "-i", str(path), "-c", "copy", str(tmp)]
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         tmp.unlink(missing_ok=True)
         raise RuntimeError(f"loudnorm failed: {result.stderr[-300:]}")
@@ -140,11 +160,13 @@ class AutoProducer:
         self._publish_at = publish_at  # RFC 3339 UTC — schedules YouTube publication
 
     def _find_approved_footage(self) -> str | None:
-        """Return the absolute local_path of an approved, downloadable footage asset."""
+        """Return the absolute local_path of an approved, downloadable footage asset.
+        Prefers footage that contains an audio stream (better beat detection + QC)."""
         catalog = FootageCatalog()
         assets = catalog.list_assets(status=ApprovalStatus.APPROVED)
-        # Prefer assets that have a local file and commercial_use=True
         project_root = Path(__file__).resolve().parents[2]
+
+        candidates: list[str] = []
         for asset in assets:
             if not (asset.local_path and asset.commercial_use and asset.monetization_allowed):
                 continue
@@ -152,8 +174,28 @@ class AutoProducer:
             if not p.is_absolute():
                 p = project_root / p
             if p.exists():
-                return str(p)
-        return None
+                candidates.append(str(p))
+
+        if not candidates:
+            return None
+
+        # Prefer audio-bearing footage — probe each candidate
+        ffprobe = shutil.which("ffprobe")
+        if ffprobe:
+            for path in candidates:
+                try:
+                    probe = subprocess.run(
+                        [ffprobe, "-v", "quiet", "-print_format", "json",
+                         "-show_streams", path],
+                        capture_output=True, text=True,
+                    )
+                    streams = json.loads(probe.stdout).get("streams", [])
+                    if any(s.get("codec_type") == "audio" for s in streams):
+                        return path
+                except Exception:
+                    pass
+
+        return candidates[0]
 
     def produce_one(self, storyboard: Storyboard) -> ProduceResult:
         """

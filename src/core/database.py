@@ -293,10 +293,13 @@ def insert_storyboard(
     return sb_id
 
 
-def storyboard_hash_exists(script_hash: str) -> bool:
+def storyboard_hash_exists(script_hash: str, within_days: int = 7) -> bool:
+    """Return True if the same script hash was produced within the last N days."""
     with _connect() as conn:
         row = conn.execute(
-            "SELECT 1 FROM storyboards WHERE script_hash = ?", (script_hash,)
+            "SELECT 1 FROM storyboards WHERE script_hash = ? "
+            "AND created_at >= datetime('now', ?)",
+            (script_hash, f"-{within_days} days"),
         ).fetchone()
     return row is not None
 

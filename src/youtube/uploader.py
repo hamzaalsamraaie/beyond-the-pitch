@@ -300,10 +300,10 @@ class YouTubeUploader:
                             "INSERT OR IGNORE INTO videos "
                             "(title, local_path, youtube_id, visibility, "
                             "status, published_at) "
-                            "SELECT storyboard_hash, local_path, ?, ?, "
-                            "'uploaded', datetime('now') "
-                            "FROM renders WHERE id=?",
-                            (youtube_id, metadata.visibility, video_db_id),
+                            "VALUES (?, "
+                            "(SELECT local_path FROM renders WHERE id=?), "
+                            "?, ?, 'uploaded', datetime('now'))",
+                            (metadata.title, video_db_id, youtube_id, metadata.visibility),
                         )
                     except Exception:
                         pass  # videos mirror is best-effort
