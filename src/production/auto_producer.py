@@ -57,8 +57,9 @@ from src.youtube.uploader import UploadResult, VideoMetadata, YouTubeUploader
 
 logger = get_logger(__name__)
 
-OUTPUT_DIR = Path(__file__).resolve().parents[2] / "output" / "shorts"
-WORK_DIR = OUTPUT_DIR / "_work"
+OUTPUT_ROOT = Path(__file__).resolve().parents[2] / "output"
+OUTPUT_DIR = OUTPUT_ROOT / "shorts"   # legacy; dated sub-dirs used for new production
+WORK_DIR = OUTPUT_ROOT / "shorts" / "_work"
 _KEEP_LAST_RENDERS = 10
 
 
@@ -66,6 +67,7 @@ _KEEP_LAST_RENDERS = 10
 class ProduceResult:
     success: bool
     output_path: Path | None = None
+    metadata_path: Path | None = None
     thumbnail_path: Path | None = None
     render_id: int | None = None
     youtube_id: str = ""
@@ -142,22 +144,31 @@ class AutoProducer:
 
     Parameters
     ----------
+    save_only:
+        Default True — render, QC, and save to output/YYYY-MM-DD/ with
+        metadata.txt. No upload to YouTube. User uploads manually.
+        Set False to re-enable upload flow (requires YouTube credentials).
     auto_publish:
-        When True, automatically publishes to YouTube after QC passes.
-        Default False — always upload as private first for review.
+        Only relevant when save_only=False. When True, publishes publicly
+        immediately after upload. Default False.
     dry_run:
-        When True, skip the render and upload steps (for testing the pipeline).
+        When True, skip the render and save steps (for testing the pipeline).
+    publish_at:
+        RFC 3339 UTC timestamp for scheduled YouTube publication.
+        Only used when save_only=False.
     """
 
     def __init__(
         self,
+        save_only: bool = True,
         auto_publish: bool = False,
         dry_run: bool = False,
         publish_at: str = "",
     ) -> None:
+        self._save_only = save_only
         self._auto_publish = auto_publish
         self._dry_run = dry_run
-        self._publish_at = publish_at  # RFC 3339 UTC — schedules YouTube publication
+        self._publish_at = publish_at  # RFC 3339 UTC — only used when save_only=False
 
     def _find_approved_footage(self) -> str | None:
         """Return the absolute local_path of an approved, downloadable footage asset.
@@ -204,13 +215,17 @@ class AutoProducer:
         """
         result = ProduceResult(success=False)
         slug = _slug(storyboard.title)
-        timestamp = datetime.now(tz=None).strftime("%Y%m%d_%H%M%S")
+        now = datetime.now(tz=None)
+        timestamp = now.strftime("%Y%m%d_%H%M%S")
+        date_str = now.strftime("%Y-%m-%d")
         final_name = f"{slug}_{timestamp}.mp4"
 
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        # Dated output folder: output/YYYY-MM-DD/ — one folder per day, easy to find
+        dated_dir = OUTPUT_ROOT / date_str
+        dated_dir.mkdir(parents=True, exist_ok=True)
         WORK_DIR.mkdir(parents=True, exist_ok=True)
 
-        final_path = OUTPUT_DIR / final_name
+        final_path = dated_dir / final_name
         vid_work = WORK_DIR / f"{slug}_{timestamp}_work.mp4"
 
         try:
@@ -357,58 +372,53 @@ class AutoProducer:
             result.output_path = final_path
             result.stages_completed.append("db_recorded")
 
-            # ── 10. Upload ────────────────────────────────────────────────
-            # Hard gate: mock-generated scripts are not production content.
-            # Render is kept for local preview; upload is blocked until a real
-            # script writer (Claude) is wired in via ANTHROPIC_API_KEY.
-            if (storyboard.generated_by or "").startswith("mock"):
-                logger.warning(
-                    "upload_blocked_mock_content",
-                    title=storyboard.title[:60],
-                    note="Set ANTHROPIC_API_KEY in .env to enable real script writing",
-                )
-                result.stages_completed.append("upload_skipped_mock_content")
-                result.success = True
-                _prune_old_renders()
-                return result
+            # ── 10. Write metadata file ───────────────────────────────────
+            meta = _build_metadata(storyboard)
+            meta_path = final_path.with_suffix(".txt")
+            _write_metadata_file(meta_path, storyboard, meta, final_path)
+            result.metadata_path = meta_path
+            result.stages_completed.append("metadata_written")
+            logger.info(
+                "auto_produce_saved",
+                path=str(final_path),
+                metadata=str(meta_path),
+                folder=str(dated_dir),
+            )
 
-            try:
-                metadata = _build_metadata(storyboard, publish_at=self._publish_at)
-                uploader = YouTubeUploader()
-                upload_result = uploader.upload(final_path, metadata, video_db_id=render_id)
+            # ── 11. Upload (only when save_only=False) ────────────────────
+            if self._save_only:
+                result.stages_completed.append("upload_skipped_save_only")
+            else:
+                try:
+                    upload_meta = _build_metadata(storyboard, publish_at=self._publish_at)
+                    uploader = YouTubeUploader()
+                    upload_result = uploader.upload(final_path, upload_meta, video_db_id=render_id)
 
-                if upload_result.success and not upload_result.is_duplicate:
-                    result.youtube_id = upload_result.youtube_id
-                    result.youtube_url = f"https://youtu.be/{upload_result.youtube_id}"
-                    result.stages_completed.append("uploaded_private")
-                    logger.info(
-                        "auto_produce_uploaded",
-                        youtube_id=upload_result.youtube_id,
-                        title=storyboard.title[:60],
-                    )
-
-                    if self._auto_publish and not self._publish_at:
-                        # Immediate public release (no schedule set).
-                        # When publish_at is set, YouTube's publishAt field handles
-                        # the scheduled release automatically — calling _publish_public
-                        # here would override the schedule and release immediately.
-                        _publish_public(upload_result.youtube_id)
-                        result.stages_completed.append("published_public")
-                    elif self._publish_at:
-                        result.stages_completed.append("scheduled_public")
-
-                elif upload_result.is_duplicate:
-                    result.youtube_id = upload_result.youtube_id
-                    result.stages_completed.append("upload_duplicate")
-                else:
-                    logger.warning(
-                        "auto_produce_upload_failed",
-                        reason=upload_result.failure_reason[:200],
-                    )
-            except EnvironmentError:
-                # No YouTube credentials — that's OK, video is still produced
-                logger.info("auto_produce_no_youtube_credentials")
-                result.stages_completed.append("upload_skipped_no_credentials")
+                    if upload_result.success and not upload_result.is_duplicate:
+                        result.youtube_id = upload_result.youtube_id
+                        result.youtube_url = f"https://youtu.be/{upload_result.youtube_id}"
+                        result.stages_completed.append("uploaded_private")
+                        logger.info(
+                            "auto_produce_uploaded",
+                            youtube_id=upload_result.youtube_id,
+                            title=storyboard.title[:60],
+                        )
+                        if self._auto_publish and not self._publish_at:
+                            _publish_public(upload_result.youtube_id)
+                            result.stages_completed.append("published_public")
+                        elif self._publish_at:
+                            result.stages_completed.append("scheduled_public")
+                    elif upload_result.is_duplicate:
+                        result.youtube_id = upload_result.youtube_id
+                        result.stages_completed.append("upload_duplicate")
+                    else:
+                        logger.warning(
+                            "auto_produce_upload_failed",
+                            reason=upload_result.failure_reason[:200],
+                        )
+                except EnvironmentError:
+                    logger.info("auto_produce_no_youtube_credentials")
+                    result.stages_completed.append("upload_skipped_no_credentials")
 
             result.success = True
             _prune_old_renders()
@@ -429,6 +439,44 @@ class AutoProducer:
                 shutil.rmtree(WORK_DIR, ignore_errors=True)
             except Exception:
                 pass
+
+
+def _write_metadata_file(
+    path: Path,
+    storyboard: Storyboard,
+    meta: "VideoMetadata",
+    video_path: Path,
+) -> None:
+    """Write a human-readable metadata.txt alongside the video for manual upload."""
+    tags_str = ", ".join(meta.tags[:30]) if meta.tags else ""
+    lines = [
+        "=" * 60,
+        "BEYOND THE PITCH — VIDEO METADATA",
+        "=" * 60,
+        "",
+        f"FILE:         {video_path.name}",
+        f"CONTENT TYPE: {storyboard.content_type or 'football_moments'}",
+        f"GENERATED:    {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "",
+        "── YOUTUBE UPLOAD DETAILS ──────────────────────────────────",
+        "",
+        f"TITLE:\n{meta.title}",
+        "",
+        f"DESCRIPTION:\n{meta.description}",
+        "",
+        f"TAGS:\n{tags_str}",
+        "",
+        "── NOTES ───────────────────────────────────────────────────",
+        "",
+        "1. Upload as 'Not made for kids'",
+        "2. Set category: Sports (17)",
+        "3. Add thumbnail: same filename with .jpg extension",
+        "4. Add music via YouTube Shorts audio picker after upload",
+        "   (Trending audio adds reach in the Shorts feed)",
+        "",
+        "=" * 60,
+    ]
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def _verify_scene_sources(storyboard: Storyboard) -> None:

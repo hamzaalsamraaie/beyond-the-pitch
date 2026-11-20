@@ -7,22 +7,21 @@ Runs three production slots per day at:
    5:00 PM ET  (slot 2)
    9:00 PM ET  (slot 3)
 
-Each slot:
-  1. Checks the kill switch — halts immediately if armed
-  2. Runs StoryboardPipeline to discover and rank stories
-  3. Runs AutoProducer to render, QC, and upload each storyboard
-  4. Logs the result to logs/scheduler.log
+Each slot produces one finished Short and saves it to output/YYYY-MM-DD/ with
+a matching metadata.txt (title, description, tags) ready for manual upload.
 
 Usage:
   source venv/bin/activate
-  python scripts/run_scheduler.py                     # run continuously (foreground)
-  python scripts/run_scheduler.py --once              # run one slot immediately and exit
-  python scripts/run_scheduler.py --dry-run           # skip render/upload
-  python scripts/run_scheduler.py --schedule-next-day # schedule publication for next-day slot
+  python scripts/run_scheduler.py          # run continuously (foreground)
+  python scripts/run_scheduler.py --once   # run one slot immediately and exit
+  python scripts/run_scheduler.py --dry-run
+
+  # Re-enable YouTube upload (opt-in):
+  python scripts/run_scheduler.py --upload [--auto-publish] [--schedule-next-day]
 
 Environment variables read from .env:
-  ANTHROPIC_API_KEY   — optional; uses MockScriptWriter if absent
-  YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET — optional; skips upload if absent
+  ANTHROPIC_API_KEY   — required for real script writing; uses mock templates if absent
+  YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET — only needed if --upload is passed
 
 Kill switch:
   touch config/kill_switch.flag     # halt all jobs
@@ -118,15 +117,16 @@ def _build_pipeline() -> StoryboardPipeline:
 def run_slot(
     slot_num: int,
     dry_run: bool = False,
+    upload: bool = False,
     auto_publish: bool = False,
     schedule_next_day: bool = False,
 ) -> None:
     """
-    Run one production slot. Produces up to one Short per content type.
+    Run one production slot. Produces one Short, saves to output/YYYY-MM-DD/.
     Skips silently if kill switch is armed.
 
-    schedule_next_day: if True, sets publishAt to tomorrow's slot time so YouTube
-    automatically publishes at the right time without manual intervention.
+    upload: if True, also upload to YouTube (requires YouTube credentials).
+    schedule_next_day: if True (and upload=True), sets publishAt to tomorrow's slot time.
     """
     if kill_switch_active():
         logger.warning("scheduler_kill_switch_active", slot=slot_num)
@@ -134,7 +134,7 @@ def run_slot(
 
     logger.info("scheduler_slot_start", slot=slot_num)
 
-    publish_at = _next_publish_time(slot_num) if schedule_next_day else ""
+    publish_at = _next_publish_time(slot_num) if (schedule_next_day and upload) else ""
     if publish_at:
         logger.info("scheduler_publish_at", publish_at=publish_at, slot=slot_num)
 
@@ -150,6 +150,7 @@ def run_slot(
         return
 
     producer = AutoProducer(
+        save_only=not upload,
         auto_publish=auto_publish,
         dry_run=dry_run,
         publish_at=publish_at,
@@ -168,7 +169,7 @@ def run_slot(
                 "scheduler_slot_success",
                 slot=slot_num,
                 title=sb.title[:60],
-                youtube_url=result.youtube_url or "(no credentials)",
+                output=str(result.output_path) if result.output_path else "(dry_run)",
                 stages=result.stages_completed,
             )
         else:
@@ -194,8 +195,12 @@ def main() -> int:
         help="Run pipeline logic but skip render and upload",
     )
     parser.add_argument(
+        "--upload", action="store_true",
+        help="Also upload to YouTube after rendering (requires YouTube credentials in .env)",
+    )
+    parser.add_argument(
         "--auto-publish", action="store_true",
-        help="Automatically publish videos publicly after upload (use with care)",
+        help="Publish publicly immediately after upload — only used with --upload",
     )
     parser.add_argument(
         "--slot", type=int, default=0,
@@ -203,10 +208,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--schedule-next-day", action="store_true",
-        help=(
-            "Set publishAt to tomorrow's slot time so YouTube auto-publishes without manual steps. "
-            "Requires auto_publish to also be set via --auto-publish."
-        ),
+        help="Set publishAt to tomorrow's slot time — only used with --upload",
     )
     args = parser.parse_args()
 
@@ -216,6 +218,7 @@ def main() -> int:
         run_slot(
             args.slot,
             dry_run=args.dry_run,
+            upload=args.upload,
             auto_publish=args.auto_publish,
             schedule_next_day=args.schedule_next_day,
         )
@@ -228,7 +231,7 @@ def main() -> int:
     sched.add_job(
         run_slot,
         CronTrigger(hour=12, minute=0, timezone=_TZ),
-        args=[0, args.dry_run, args.auto_publish, args.schedule_next_day],
+        args=[0, args.dry_run, args.upload, args.auto_publish, args.schedule_next_day],
         id="slot_noon",
         name="Slot 1 — 12:00 PM ET",
         replace_existing=True,
@@ -238,7 +241,7 @@ def main() -> int:
     sched.add_job(
         run_slot,
         CronTrigger(hour=17, minute=0, timezone=_TZ),
-        args=[1, args.dry_run, args.auto_publish, args.schedule_next_day],
+        args=[1, args.dry_run, args.upload, args.auto_publish, args.schedule_next_day],
         id="slot_5pm",
         name="Slot 2 — 5:00 PM ET",
         replace_existing=True,
@@ -248,7 +251,7 @@ def main() -> int:
     sched.add_job(
         run_slot,
         CronTrigger(hour=21, minute=0, timezone=_TZ),
-        args=[2, args.dry_run, args.auto_publish, args.schedule_next_day],
+        args=[2, args.dry_run, args.upload, args.auto_publish, args.schedule_next_day],
         id="slot_9pm",
         name="Slot 3 — 9:00 PM ET",
         replace_existing=True,
@@ -259,10 +262,10 @@ def main() -> int:
         slots=["12:00 PM", "5:00 PM", "9:00 PM"],
         timezone=_TZ,
         dry_run=args.dry_run,
-        auto_publish=args.auto_publish,
-        schedule_next_day=args.schedule_next_day,
+        save_only=not args.upload,
     )
     print("Beyond The Pitch scheduler running. Press Ctrl+C to stop.")
+    print("Videos saved to: output/YYYY-MM-DD/ — upload manually to YouTube.")
     print("Kill switch: touch config/kill_switch.flag to halt jobs without stopping process.")
 
     try:
