@@ -1,11 +1,13 @@
 # Beyond The Pitch — Project State
 **Last updated:** 2026-11-20  
 **Test suite:** 622 passing, 0 failing  
+**Scheduler status:** LIVE — launchd service installed, 3 slots/day at 12PM/5PM/9PM Toronto. PID verified. Starts at login, restarts on crash.
 **Demo Short (real footage):** `output/shorts/pixabay_soccer_short.mp4` — 1080×1920, h264, 25.0s, 15 MB, QC passed  
 **First Short v2 (animated captions):** `output/shorts/martinez_world_cup_v2.mp4` — 1080×1920, h264, 28.0s, 39 MB, QC passed, render_id=6  
-**Upload status:** 1 video uploaded (private): `uhUTx84DG4w` — "He made 11 saves…" Duplicate `aUtO8CYYq1w` exists on channel (0 views) — DELETE manually in YouTube Studio. render_id=6 is now linked to the canonical upload in DB.  
-**Automation status:** Scheduler + AutoProducer built. Full pipeline verified end-to-end (render → effects → LUFS → music → thumbnail → QC → DB → upload private). America/Toronto timezone. `--schedule-next-day` flag wires YouTube `publishAt` for auto-publication.
-**Full pipeline proof (2026-11-20):** `produce_one()` with pixabay footage → render 709 frames (27s) → effects 14s → music → QC passed → uploaded private → `youtube_id=A19ioZSVXd4`, render_id=8. All 12 stages completed.
+**Upload status:** 1 canonical upload: `uhUTx84DG4w`. Test uploads needing deletion: `aUtO8CYYq1w` (duplicate), `gRP9WqoL3QM`, `yPec0TMpfXQ` (both mock content — DELETE manually in YouTube Studio).
+**Automation status:** Scheduler live with `--auto-publish --schedule-next-day`. Each video renders locally, passes QC, then uploads private with `publishAt` for the next day's slot. YouTube auto-publishes at the scheduled time — no manual step needed.
+**CRITICAL BLOCKER:** `ANTHROPIC_API_KEY` not set → MockScriptWriter in use → mock-generated videos are BLOCKED from upload by safety gate. Add key to `.env` to enable real production.
+**Full pipeline proof (2026-11-20):** `produce_one()` with pixabay footage → render 709 frames (27s) → effects 14s → QC passed → uploaded private → `youtube_id=A19ioZSVXd4`, render_id=8. All 12 stages completed.
 
 ---
 
@@ -303,7 +305,7 @@ Growth intelligence tracking per-video: player, moment type, music style, captio
 | 12 | ~~OAuth `get_credentials()` hung on token refresh failure~~ | ~~Automated pipeline~~ | **RESOLVED 2026-11-20** — Raises `EnvironmentError` immediately on refresh failure (network unavailable / revoked). AutoProducer catches it as `upload_skipped_no_credentials`. |
 | 3 | No approved footage with audio | **Quality** | Current footage (pexels_match_31511131.mp4) has no audio. Beat detection falls back to 100 BPM. LUFS normalise produces silent video. Import footage with audio for a richer result. Existing pipeline still produces valid video. |
 | 4 | Real licensed music (phonk/Brazilian funk) | **Sound design** | All 4 music slots are synthetic placeholder beats. Pipeline works. Replace with CC0 tracks from Pixabay Music (cinematic/sport free) or Artlist ($199/yr) / Epidemic Sound ($15/month) for phonk/montagem. |
-| 5 | `ANTHROPIC_API_KEY` not set | Claude script writing | MockScriptWriter is used as fallback — functional but deterministic |
+| 5 | `ANTHROPIC_API_KEY` not set | **Real uploads blocked** | Mock-generated videos are now HARD BLOCKED from upload by safety gate. Add key to `.env`. After adding, reset `DAILY_UPLOAD_CAP=3` in `.env` (currently 6 to allow today's remaining slots after testing). |
 | 6 | `OPENAI_API_KEY` not set | OpenAI TTS fallback | Add to `.env` if TTS narration is needed |
 | 7 | No Kling account | AI-generated cinematic clips | Create free account at klingai.com; test with daily Basic credits |
 | 8 | FFmpeg 9.0.2 Homebrew bottle excludes libass | ASS caption burn | Moot — PIL frame-pipe renderer is now primary caption system |
@@ -323,11 +325,35 @@ Growth intelligence tracking per-video: player, moment type, music style, captio
 
 ## Exact Next Steps
 
-### Step 1 — Delete the duplicate upload
+### Step 1 — Delete test uploads from YouTube Studio
 
-Go to YouTube Studio → Content → delete `aUtO8CYYq1w` (the duplicate with 0 views). Keep `uhUTx84DG4w`.
+Go to YouTube Studio → Content → delete these 3 videos:
+- `aUtO8CYYq1w` — duplicate of the canonical upload
+- `gRP9WqoL3QM` — mock content from testing
+- `yPec0TMpfXQ` — mock content from testing
 
-### Step 2 — Replace placeholder music
+Keep `uhUTx84DG4w` ("He made 11 saves…").
+
+### Step 2 — Add ANTHROPIC_API_KEY (REQUIRED for real uploads)
+
+The scheduler is running but the mock-content gate blocks all uploads until a real script writer is active. Add to `.env`:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+After adding, also reset the daily cap (was raised to 6 for testing):
+```
+DAILY_UPLOAD_CAP=3
+```
+
+Restart the scheduler to pick up the new env:
+```bash
+launchctl unload ~/Library/LaunchAgents/com.beyondthepitch.scheduler.plist
+launchctl load ~/Library/LaunchAgents/com.beyondthepitch.scheduler.plist
+```
+
+### Step 3 — Replace placeholder music (quality improvement)
 
 Download 1-4 MP3 tracks from Pixabay Music (free, CC0) and place them in `assets/music/` matching the filenames in `src/editing/music_library.py`:
 
@@ -338,7 +364,7 @@ Download 1-4 MP3 tracks from Pixabay Music (free, CC0) and place them in `assets
 
 After downloading, verify: `python -c "from src.editing.music_library import verify_library; print(verify_library())"` — look for `"ok"` entries, not `"placeholder"`.
 
-### Step 3 — Import approved footage with audio
+### Step 4 — Import more approved footage with audio
 
 The pipeline is fully verified. The bottleneck is approved footage. Import more Pixabay/Pexels clips:
 
@@ -351,16 +377,22 @@ python scripts/footage_catalog.py approve --id UUID
 
 Use clips with crowd audio for better beat detection and richer LUFS normalisation.
 
-### Step 4 — Launch scheduler with auto-publishing
+### Step 5 — The scheduler is already live
 
+The launchd service is installed and running. To verify: `launchctl list | grep beyondthepitch`
+
+To restart after changing `.env`:
 ```bash
-# Schedule each video to auto-publish at tomorrow's slot time
-python scripts/run_scheduler.py --auto-publish --schedule-next-day
-
-# To run 24/7 without keeping Terminal open:
-cp config/com.beyondthepitch.scheduler.plist ~/Library/LaunchAgents/
+launchctl unload ~/Library/LaunchAgents/com.beyondthepitch.scheduler.plist
 launchctl load ~/Library/LaunchAgents/com.beyondthepitch.scheduler.plist
 ```
+
+To stop entirely:
+```bash
+launchctl unload ~/Library/LaunchAgents/com.beyondthepitch.scheduler.plist
+```
+
+Logs: `tail -f logs/scheduler_stdout.log`
 
 ---
 
@@ -370,9 +402,9 @@ launchctl load ~/Library/LaunchAgents/com.beyondthepitch.scheduler.plist
 
 ```bash
 # 1. Add YouTube credentials to .env (one-time setup)
-#    YOUTUBE_CLIENT_ID=...
-#    YOUTUBE_CLIENT_SECRET=...
-#    ANTHROPIC_API_KEY=...  (optional — MockScriptWriter is fallback)
+#    YOUTUBE_CLIENT_ID=...        ✓ already set
+#    YOUTUBE_CLIENT_SECRET=...    ✓ already set
+#    ANTHROPIC_API_KEY=...        ← REQUIRED — without this, uploads are blocked
 
 # 2. Import and approve stock footage
 python scripts/footage_catalog.py import stock \

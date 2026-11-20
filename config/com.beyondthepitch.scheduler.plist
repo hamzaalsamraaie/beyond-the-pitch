@@ -13,6 +13,8 @@
   <array>
     <string>/Users/hamzaals/football-shorts/venv/bin/python</string>
     <string>/Users/hamzaals/football-shorts/scripts/run_scheduler.py</string>
+    <string>--auto-publish</string>
+    <string>--schedule-next-day</string>
   </array>
 
   <!-- Working directory (so relative paths in the script resolve correctly) -->
