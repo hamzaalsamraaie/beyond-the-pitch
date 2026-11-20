@@ -1,0 +1,120 @@
+# ── Phase 4: trend discovery ──────────────────────────────────────────────────
+trends:
+  # API key loaded from YOUTUBE_API_KEY env var; this section controls behaviour only
+  quota_daily_budget: 8000          # soft ceiling (hard ceiling is 9,000 in code)
+  cache_ttl_hours: 24               # re-use cached search results within this window
+  min_views_threshold: 100000       # exclude Shorts below this view count
+  max_shorts_duration_secs: 180     # YouTube extended Shorts to 3 min (late 2023); duration alone is not conclusive
+  viral_score_age_exponent: 0.7     # views / age_days^exponent
+  default_queries:
+    - "#Shorts football"
+    - "#Shorts soccer goal"
+    - "#Shorts footballer story"
+    - "football motivation shorts"
+  channel_handles_to_track:
+    - "@Porsevio"
+    - "@FootballShorts"
+  min_views_for_report: 500000      # only Shorts above this appear in the report
+
+# ── Video production ──────────────────────────────────────────────────────────
+video:
+  width: 1080
+  height: 1920
+  fps: 30
+  min_duration_seconds: 20
+  max_duration_seconds: 45
+  default_duration_seconds: 30
+  codec: libx264
+  crf: 23                        # quality: lower = better (18–28 is typical)
+  audio_bitrate: "128k"
+
+# ── Safety limits ─────────────────────────────────────────────────────────────
+limits:
+  daily_upload_cap: 3
+  monthly_claude_spend_usd: 20.00
+  max_retries: 3
+
+# ── Upload behaviour ──────────────────────────────────────────────────────────
+upload:
+  default_visibility: private    # private | public — always start private
+  require_human_review: true
+
+# ── Topic scoring weights (must sum to 1.0) ───────────────────────────────────
+# freshness:          How recent/timely the source material is
+# audience_interest:  Estimated viewer interest based on keyword signals
+# emotional_impact:   How emotionally resonant the story is
+# originality:        How novel vs topics already covered (penalised if repeat)
+# visual_feasibility: Can we illustrate without requiring specific licensed footage
+idea_scoring:
+  freshness: 0.20
+  audience_interest: 0.25
+  emotional_impact: 0.25
+  originality: 0.20
+  visual_feasibility: 0.10
+
+# ── Research & script generation ──────────────────────────────────────────────
+research:
+  default_content_types:
+    - football_moments
+    - player_stories
+    - football_motivation
+  topics_per_run: 5
+  min_score_threshold: 0.40        # topics below this score are skipped
+  originality_similarity_cutoff: 0.55  # Jaccard word-overlap above this = repeat
+
+# ── Claude API ────────────────────────────────────────────────────────────────
+claude:
+  model: claude-haiku-4-5-20251001  # cheapest capable model
+  max_tokens_per_request: 1500
+  max_requests_per_day: 10          # hard cap; enforced in DB
+  mock_mode: false                  # set true to skip all real API calls
+
+# ── Phase 3: video production ─────────────────────────────────────────────────
+production:
+  # TTS provider: mock | macos
+  # mock = FFmpeg-generated silence (zero cost, offline, used in all tests)
+  # macos = macOS built-in `say` command (free, offline, natural voice)
+  tts_provider: mock
+  macos_tts_voice: Samantha        # any voice listed by: say -v ?
+  tts_reading_speed_wps: 2.5       # words-per-second estimate for mock duration
+
+  # Frame pipe: resolution already in video section above
+  frame_pipe_buffer_mb: 64
+
+  # Render dedup: refuse to render if the storyboard hash is already in DB
+  prevent_duplicate_renders: true
+
+  # Human review: set to false only for demo/testing
+  require_storyboard_approval: true
+
+  # QC thresholds
+  qc_max_duration_tolerance_secs: 2.0
+  qc_min_file_size_bytes: 10000
+  qc_max_file_size_mb: 500
+
+  # Asset manifest path (relative to project root)
+  asset_manifest_path: data/asset_manifest.json
+
+# ── Phase 5: footage catalog ──────────────────────────────────────────────────
+footage:
+  # Stock platforms whose license is uniform — auto-inferred as PENDING_REVIEW on import
+  trusted_stock_domains:
+    - pixabay.com
+    - pexels.com
+    - coverr.co
+
+  # These domains are hard-blocked from stock import
+  blocked_domains:
+    - youtube.com
+    - youtu.be
+
+  # Local storage path for downloaded clips (relative to project root)
+  local_storage_path: output/footage
+
+  # Hard gate: set to true to enforce approval check in production pipeline
+  block_unapproved_in_production: true
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level: INFO
+  log_dir: logs

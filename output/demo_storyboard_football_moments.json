@@ -1,0 +1,77 @@
+{
+  "title": "[MOCK] Zinedine Zidane's volley in the 2002 Champions League Final",
+  "content_type": "football_moments",
+  "hook": "THE GREATEST GOAL EVER?",
+  "scenes": [
+    {
+      "scene_number": 1,
+      "start_time": 0.0,
+      "end_time": 5.0,
+      "narration": "THE GREATEST GOAL EVER?",
+      "on_screen_text": "Zinedine Zidane's volley in the 2002 Champions League Final",
+      "visual_requirement": "Archive-style photo collage or illustrated graphic",
+      "source_indices": [
+        0
+      ]
+    },
+    {
+      "scene_number": 2,
+      "start_time": 5.0,
+      "end_time": 20.0,
+      "narration": "Zinedine Zidane scored a left-footed volley in the 45th minute of the UEFA Champions League Final on 15 May 2002 at Hampden Park, Glasgow. Real Madrid won 2–1 against Bayer Leverkusen.",
+      "on_screen_text": "The Story",
+      "visual_requirement": "Archive-style photo collage or illustrated graphic",
+      "source_indices": [
+        0
+      ]
+    },
+    {
+      "scene_number": 3,
+      "start_time": 20.0,
+      "end_time": 30.0,
+      "narration": "The goal was voted the greatest goal in Champions League history in a poll conducted by UEFA in 2012.",
+      "on_screen_text": "Part 2",
+      "visual_requirement": "Archive-style photo collage or illustrated graphic",
+      "source_indices": [
+        1
+      ]
+    }
+  ],
+  "total_duration": 30.0,
+  "proposed_titles": [
+    "Zinedine Zidane's volley in the 2002 Champions League Final",
+    "The Story of Zinedine Zidane's volley in the 2002 Champions League Final",
+    "You Won't Believe This: Zinedine Zidane's volley in the 2002 Champions Lea"
+  ],
+  "hashtags": [
+    "#Shorts",
+    "#football",
+    "#footballstories",
+    "#beyondthepitch",
+    "#sports"
+  ],
+  "research_items": [
+    {
+      "fact": "Zinedine Zidane scored a left-footed volley in the 45th minute of the UEFA Champions League Final on 15 May 2002 at Hampden Park, Glasgow. Real Madrid won 2–1 against Bayer Leverkusen.",
+      "source": {
+        "url": "https://en.wikipedia.org/wiki/2002_UEFA_Champions_League_final",
+        "title": "2002 UEFA Champions League Final",
+        "publisher": "Wikipedia",
+        "date_published": ""
+      },
+      "reliability": "verified"
+    },
+    {
+      "fact": "The goal was voted the greatest goal in Champions League history in a poll conducted by UEFA in 2012.",
+      "source": {
+        "url": "https://en.wikipedia.org/wiki/Zinedine_Zidane",
+        "title": "Zinedine Zidane",
+        "publisher": "Wikipedia",
+        "date_published": ""
+      },
+      "reliability": "unverified"
+    }
+  ],
+  "script_hash": "275b32051c0ba41ed617bf42e8d8effa8028d24ae21c9f061bb76e128d7957de",
+  "generated_by": "mock"
+}

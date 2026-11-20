@@ -1,0 +1,77 @@
+{
+  "title": "[MOCK] N'Golo Kanté: from amateur football to two league titles and a World Cup",
+  "content_type": "football_motivation",
+  "hook": "TOO SMALL TO PLAY PRO?",
+  "scenes": [
+    {
+      "scene_number": 1,
+      "start_time": 0.0,
+      "end_time": 5.0,
+      "narration": "TOO SMALL TO PLAY PRO?",
+      "on_screen_text": "N'Golo Kanté: from amateur football to two league titles and",
+      "visual_requirement": "Animated text graphic over a solid-colour background",
+      "source_indices": [
+        0
+      ]
+    },
+    {
+      "scene_number": 2,
+      "start_time": 5.0,
+      "end_time": 20.0,
+      "narration": "N'Golo Kanté played for US Boulogne's reserve team and amateur sides until age 19, having been rejected by professional clubs who considered him too small. He stood 5 ft 6 in (168 cm).",
+      "on_screen_text": "The Story",
+      "visual_requirement": "Animated text graphic over a solid-colour background",
+      "source_indices": [
+        0
+      ]
+    },
+    {
+      "scene_number": 3,
+      "start_time": 20.0,
+      "end_time": 30.0,
+      "narration": "Kanté won the Premier League with Leicester City in 2015–16 and with Chelsea in 2016–17, was named PFA Players' Player of the Year in 2017, and won the 2018 FIFA World Cup with France.",
+      "on_screen_text": "Part 2",
+      "visual_requirement": "Animated text graphic over a solid-colour background",
+      "source_indices": [
+        1
+      ]
+    }
+  ],
+  "total_duration": 30.0,
+  "proposed_titles": [
+    "N'Golo Kanté: from amateur football to two league titles and a World C",
+    "The Story of N'Golo Kanté: from amateur football to two league titles and",
+    "You Won't Believe This: N'Golo Kanté: from amateur football to two league "
+  ],
+  "hashtags": [
+    "#Shorts",
+    "#football",
+    "#footballstories",
+    "#beyondthepitch",
+    "#sports"
+  ],
+  "research_items": [
+    {
+      "fact": "N'Golo Kanté played for US Boulogne's reserve team and amateur sides until age 19, having been rejected by professional clubs who considered him too small. He stood 5 ft 6 in (168 cm).",
+      "source": {
+        "url": "https://en.wikipedia.org/wiki/N%27Golo_Kant%C3%A9",
+        "title": "N'Golo Kanté",
+        "publisher": "Wikipedia",
+        "date_published": ""
+      },
+      "reliability": "verified"
+    },
+    {
+      "fact": "Kanté won the Premier League with Leicester City in 2015–16 and with Chelsea in 2016–17, was named PFA Players' Player of the Year in 2017, and won the 2018 FIFA World Cup with France.",
+      "source": {
+        "url": "https://en.wikipedia.org/wiki/N%27Golo_Kant%C3%A9",
+        "title": "N'Golo Kanté",
+        "publisher": "Wikipedia",
+        "date_published": ""
+      },
+      "reliability": "verified"
+    }
+  ],
+  "script_hash": "e06d03660558178eaa975efc496420dd7a4aeace5ae7992c0d68ea601636d93e",
+  "generated_by": "mock"
+}

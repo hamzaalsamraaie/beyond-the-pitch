@@ -1,0 +1,77 @@
+{
+  "title": "[MOCK] Ronaldo (R9) overcame a heart condition to win the 1994 World Cup",
+  "content_type": "player_stories",
+  "hook": "HE SHOULDN'T HAVE PLAYED",
+  "scenes": [
+    {
+      "scene_number": 1,
+      "start_time": 0.0,
+      "end_time": 5.0,
+      "narration": "HE SHOULDN'T HAVE PLAYED",
+      "on_screen_text": "Ronaldo (R9) overcame a heart condition to win the 1994 Worl",
+      "visual_requirement": "Archive-style photo collage or illustrated graphic",
+      "source_indices": [
+        0
+      ]
+    },
+    {
+      "scene_number": 2,
+      "start_time": 5.0,
+      "end_time": 20.0,
+      "narration": "On the eve of the 1998 FIFA World Cup Final, Ronaldo Nazário suffered a convulsive fit at the team hotel. He was initially left off the starting lineup before being reinstated hours before kick-off. B",
+      "on_screen_text": "The Story",
+      "visual_requirement": "Archive-style photo collage or illustrated graphic",
+      "source_indices": [
+        0
+      ]
+    },
+    {
+      "scene_number": 3,
+      "start_time": 20.0,
+      "end_time": 30.0,
+      "narration": "In the 2002 FIFA World Cup, Ronaldo Nazário scored eight goals to win the Golden Boot and led Brazil to the championship, defeating Germany 2–0 in the final.",
+      "on_screen_text": "Part 2",
+      "visual_requirement": "Archive-style photo collage or illustrated graphic",
+      "source_indices": [
+        1
+      ]
+    }
+  ],
+  "total_duration": 30.0,
+  "proposed_titles": [
+    "Ronaldo (R9) overcame a heart condition to win the 1994 World Cup",
+    "The Story of Ronaldo (R9) overcame a heart condition to win the 1994 Worl",
+    "You Won't Believe This: Ronaldo (R9) overcame a heart condition to win the"
+  ],
+  "hashtags": [
+    "#Shorts",
+    "#football",
+    "#footballstories",
+    "#beyondthepitch",
+    "#sports"
+  ],
+  "research_items": [
+    {
+      "fact": "On the eve of the 1998 FIFA World Cup Final, Ronaldo Nazário suffered a convulsive fit at the team hotel. He was initially left off the starting lineup before being reinstated hours before kick-off. Brazil lost 3–0 to France.",
+      "source": {
+        "url": "https://en.wikipedia.org/wiki/Ronaldo_(Brazilian_footballer)",
+        "title": "Ronaldo (Brazilian footballer)",
+        "publisher": "Wikipedia",
+        "date_published": ""
+      },
+      "reliability": "verified"
+    },
+    {
+      "fact": "In the 2002 FIFA World Cup, Ronaldo Nazário scored eight goals to win the Golden Boot and led Brazil to the championship, defeating Germany 2–0 in the final.",
+      "source": {
+        "url": "https://en.wikipedia.org/wiki/2002_FIFA_World_Cup",
+        "title": "2002 FIFA World Cup",
+        "publisher": "Wikipedia",
+        "date_published": ""
+      },
+      "reliability": "verified"
+    }
+  ],
+  "script_hash": "a5403e655f2171b078de015f7212019770e2f0ba85f451ef616969eed631dd29",
+  "generated_by": "mock"
+}

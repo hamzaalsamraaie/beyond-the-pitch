@@ -1,0 +1,24 @@
+# ── Phase 1: video generation ─────────────────────────────────────────────────
+Pillow>=10.4.0
+structlog>=24.0.0
+python-dotenv>=1.0.0
+
+# ── Phase 2: research and storytelling engine ─────────────────────────────────
+anthropic>=2.0.0        # Claude API for script generation
+pydantic>=2.7.0         # data model validation (Storyboard, ResearchItem, etc.)
+pyyaml>=6.0.1           # read config/settings.yaml
+requests>=2.32.0        # Wikipedia research provider
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest>=9.0.0
+
+# ── Phase 4: trend discovery and planning ─────────────────────────────────────
+google-api-python-client>=2.150.0  # YouTube Data API v3 (live mode)
+google-auth-oauthlib>=1.2.0        # OAuth2 for YouTube upload + analytics
+isodate>=0.6.1                     # ISO 8601 duration parsing (PT45S → 45)
+
+# ── Phase 5+: clipping pipeline and publishing ────────────────────────────────
+# Optional — install for real transcription, TTS, video download:
+#   pip install faster-whisper    # local Whisper, word-level timestamps (BLOCKER for real clips)
+#   pip install yt-dlp            # download creator-authorized YouTube videos
+#   pip install openai            # OpenAI TTS (tts-1-hd) — needs OPENAI_API_KEY

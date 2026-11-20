@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+  <!-- Service identity -->
+  <key>Label</key>
+  <string>com.beyondthepitch.scheduler</string>
+
+  <!-- Command to run -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/hamzaals/football-shorts/venv/bin/python</string>
+    <string>/Users/hamzaals/football-shorts/scripts/run_scheduler.py</string>
+  </array>
+
+  <!-- Working directory (so relative paths in the script resolve correctly) -->
+  <key>WorkingDirectory</key>
+  <string>/Users/hamzaals/football-shorts</string>
+
+  <!-- Start at login and keep alive if it crashes -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- Log stdout and stderr to files -->
+  <key>StandardOutPath</key>
+  <string>/Users/hamzaals/football-shorts/logs/scheduler_stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/hamzaals/football-shorts/logs/scheduler_stderr.log</string>
+
+  <!-- Throttle restarts (don't spin-loop on repeated failures) -->
+  <key>ThrottleInterval</key>
+  <integer>60</integer>
+
+</dict>
+</plist>
